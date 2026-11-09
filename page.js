@@ -12,6 +12,7 @@ $('lede').textContent = 'Excavation of "' + DATA.folder + '". Every file is a fo
 for (const [v, label] of [[S.total.toLocaleString('en-US'), 'fossils'], [humanSize(S.bytes), 'in the ground'], [S.oldest ? humanAge(S.oldest.age) : 'none', 'oldest find']]) {
   const d = el('div'); d.append(el('b', v), el('span', label)); $('stats').append(d);
 }
+if (DATA.capped) $('stats').after(el('p', 'Heads up: only the first ' + S.total.toLocaleString('en-US') + ' files were scanned, so older finds may be missing. Re-run with --max for more.', 'hint'));
 const carbon = $('carbon');
 if (S.oldest) {
   carbon.append(el('h2', 'Carbon-dating complete.'));
@@ -19,18 +20,18 @@ if (S.oldest) {
 } else carbon.append(el('h2', 'Nothing here but bare rock.'), el('p', 'The folder had no files to dig up.'));
 $('note').textContent = DATA.skipped ? DATA.skipped + ' folder(s) could not be read and were skipped.' + (DATA.capped ? ' Scan stopped at the file limit.' : '') : (DATA.capped ? 'Scan stopped at the file limit.' : '');
 
-function table(title, rows, col) {
+function table(title, rows) {
   const t = el('table'), c = el('caption', title), h = el('tr');
   t.append(c);
-  for (const x of ['File', col, 'Size']) h.append(el('th', x));
+  for (const x of ['File', 'Age', 'Size']) h.append(el('th', x));
   t.append(h);
-  for (const f of rows) { const r = el('tr'); r.append(el('td', f.name), el('td', col === 'Age' ? humanAge(f.age) : humanSize(f.size)), el('td', humanSize(f.size))); t.append(r); }
+  for (const f of rows) { const r = el('tr'); r.append(el('td', f.name), el('td', humanAge(f.age)), el('td', humanSize(f.size))); t.append(r); }
   return t;
 }
 const all = S.layers.flatMap(l => l.files);
 $('ledger').append(
-  table('25 oldest files', [...all].sort((a, b) => b.age - a.age).slice(0, 25), 'Age'),
-  table('25 biggest files', [...all].sort((a, b) => b.size - a.size).slice(0, 25), 'Age'));
+  table('25 oldest files', [...all].sort((a, b) => b.age - a.age).slice(0, 25)),
+  table('25 biggest files', [...all].sort((a, b) => b.size - a.size).slice(0, 25)));
 
 // ---------- seeded random so the same folder always looks the same ----------
 function rng(seed) { let a = Math.floor(seed * 4294967296) >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
