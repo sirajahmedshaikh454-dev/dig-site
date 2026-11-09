@@ -40,7 +40,7 @@ const wave = (x, i) => Math.sin(x * 0.011 + i * 3) * 5 + Math.sin(x * 0.027 + i)
 // ---------- layout: one band per layer, fossils placed without overlapping ----------
 function build() {
   const dpr = Math.min(devicePixelRatio || 1, 2);
-  W = Math.min(innerWidth, 1100);
+  W = Math.min(cv.parentElement.clientWidth || innerWidth, 1100);
   bands = []; spots = [];
   let y = 0;
   for (const l of S.layers) { const h = Math.round(Math.max(110, Math.min(460, 110 + Math.sqrt(l.files.length) * 26))); bands.push({ l, y0: y, y1: y + h }); y += h; }
@@ -54,8 +54,8 @@ function build() {
     for (const f of b.l.files.slice(0, 70)) {
       const rnd = rng(seeded(f.path || f.name)), r = radiusFor(f.size, 5, W < 700 ? 22 : 32) * (rex && f === S.biggest ? 1.5 : 1);
       for (let tries = 0; tries < 30; tries++) {
-        const x = r + 10 + rnd() * (W - 2 * r - 20), yy = b.y0 + r + 16 + rnd() * Math.max(1, b.y1 - b.y0 - 2 * r - 26);
-        if (x < 210 && yy < b.y0 + 62) continue;                         // keep the layer label readable
+        const x = r + 10 + rnd() * (W - 2 * r - 20), yy = Math.min(b.y1 - r - 10, b.y0 + r + 16 + rnd() * Math.max(1, b.y1 - b.y0 - 2 * r - 26));
+        if (x - r < 206 && yy - r < b.y0 + 58) continue;                         // keep the layer label readable
         if (spots.some(s => (s.x - x) ** 2 + (s.y - yy) ** 2 < (s.r + r + 4) ** 2) && tries < 29) continue;
         spots.push({ x, y: yy, r, f }); break;
       }
@@ -139,7 +139,7 @@ function draw() {
 
 // ---------- hover label and click-to-copy ----------
 function at(e) {
-  const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+  const r = cv.getBoundingClientRect(), k = W / (r.width || W), x = (e.clientX - r.left) * k, y = (e.clientY - r.top) * k;
   let best = null, bd = Infinity;
   for (const s of spots) { const d = Math.hypot(s.x - x, s.y - y); if (d < s.r + 5 && d < bd) { bd = d; best = s; } }
   return best;
@@ -174,7 +174,7 @@ S.layers.forEach((l, i) => {
   gauge.append(b);
 });
 function gaugeTick() {
-  const mid = scrollY + innerHeight / 2 - (cv.getBoundingClientRect().top + scrollY);
+  const mid = scrollY + 80 - (cv.getBoundingClientRect().top + scrollY);
   const i = Math.max(0, bands.findIndex(b => mid < b.y1) );
   [...gauge.children].forEach((b, k) => b.setAttribute('aria-current', String(k === (mid >= H ? bands.length - 1 : i))));
 }
