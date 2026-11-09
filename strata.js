@@ -21,7 +21,11 @@ const KINDS = {
   media: 'mp4 mov avi mkv mp3 wav flac webm m4a',
 };
 const BY_EXT = Object.fromEntries(Object.entries(KINDS).flatMap(([k, v]) => v.split(' ').map(e => [e, k])));
-export const kindOf = name => BY_EXT[(name.split('.').pop() || '').toLowerCase()] || 'other';
+// Extension only if there is a real dot. Own-property check, so a file called "x.constructor" is not a prototype lookup.
+const extOf = name => { const i = name.lastIndexOf('.'); return i > 0 ? name.slice(i + 1).toLowerCase() : ''; };
+export const kindOf = name => { const e = extOf(name); return Object.hasOwn(BY_EXT, e) ? BY_EXT[e] : 'other'; };
+// Only well-known extensions survive anonymising, so any words after the last dot cannot leak through it.
+export const safeExt = name => { const e = extOf(name); return Object.hasOwn(BY_EXT, e) ? '.' + e : ''; };
 
 export function layerFor(ageDays) {
   return LAYERS.find(l => ageDays <= l.max);
@@ -32,7 +36,7 @@ export function humanAge(ageDays) {
   const d = Math.max(0, Math.floor(ageDays));
   if (d < 1) return 'today';
   if (d < 60) return d + (d === 1 ? ' day' : ' days');
-  const m = Math.floor(d / 30.44);
+  const m = Math.round(d / 30.4375);
   if (m < 24) return m + ' months';
   const y = Math.floor(m / 12), r = m % 12;
   return y + (y === 1 ? ' year' : ' years') + (r ? ', ' + r + (r === 1 ? ' month' : ' months') : '');
@@ -42,7 +46,9 @@ export function humanSize(bytes) {
   const u = ['B', 'KB', 'MB', 'GB', 'TB'];
   let i = 0, v = bytes;
   while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
-  return (i ? v.toFixed(v < 10 ? 1 : 0) : v) + ' ' + u[i];
+  let r = i ? +v.toFixed(v < 10 ? 1 : 0) : v;
+  if (r >= 1024 && i < u.length - 1) { r = +(r / 1024).toFixed(1); i++; }   // 1023.6 KB rounds up to 1024: promote the unit
+  return r + ' ' + u[i];
 }
 
 // files: [{ name, path, size, mtime }]  ->  { layers, total, oldest, biggest }
