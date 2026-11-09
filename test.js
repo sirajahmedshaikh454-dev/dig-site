@@ -58,3 +58,26 @@ test('scan reads metadata only, skips node_modules, never follows symlinks, surv
     assert.equal(scan(root, { maxFiles: 1 }).capped, true);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('hostile file names cannot break out of the generated page', async () => {
+  const { renderPage, safeJson } = await import('./embed.js');
+  const sep = String.fromCharCode(0x2028);
+  const evil = ['</script><img src=x onerror=alert(1)>.txt', 'a' + sep + 'b.png', '"quote\back.doc'];
+  const data = { folder: '</title><b>x', now: NOW, skipped: 0, capped: false, files: evil.map((name, i) => ({ name, path: name, size: i + 1, mtime: NOW })) };
+  const html = renderPage(data);
+  assert.equal(html.split('</script>').length - 1, 1, 'only our own closing tag may appear');
+  const m = html.match(/^const DATA = (.*);$/m);
+  assert.deepEqual(JSON.parse(m[1]).files.map(f => f.name), evil);   // round-trips exactly
+  assert.ok(!safeJson({ x: sep }).includes(sep));
+  const body = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+  new (await import('node:vm')).Script(body);                         // the whole inlined script must still parse
+});
+
+test('capped is only set when the scan really stopped early', () => {
+  const root = mkdtempSync(join(tmpdir(), 'dig-'));
+  try {
+    writeFileSync(join(root, 'a.txt'), '1'); writeFileSync(join(root, 'b.txt'), '2');
+    assert.equal(scan(root, { maxFiles: 2 }).capped, false);   // exactly at the limit is not a cut-off
+    assert.equal(scan(root, { maxFiles: 1 }).capped, true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
