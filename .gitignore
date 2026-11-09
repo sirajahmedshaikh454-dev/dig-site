@@ -1,0 +1,4 @@
+node_modules/
+.env
+dig-site.html
+*.log
