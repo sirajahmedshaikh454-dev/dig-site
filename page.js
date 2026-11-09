@@ -174,9 +174,11 @@ S.layers.forEach((l, i) => {
   gauge.append(b);
 });
 function gaugeTick() {
+  // At the very bottom the page cannot scroll any further, so the last layer would never reach the probe line: call it active.
+  const atEnd = scrollY + innerHeight >= document.documentElement.scrollHeight - 2;
   const mid = scrollY + 80 - (cv.getBoundingClientRect().top + scrollY);
   const i = Math.max(0, bands.findIndex(b => mid < b.y1) );
-  [...gauge.children].forEach((b, k) => b.setAttribute('aria-current', String(k === (mid >= H ? bands.length - 1 : i))));
+  [...gauge.children].forEach((b, k) => b.setAttribute('aria-current', String(k === (atEnd || mid >= H ? bands.length - 1 : i))));
 }
 addEventListener('scroll', gaugeTick, { passive: true });
 
